@@ -17,7 +17,6 @@ class Persona:
                 plugs[plug_name] = {"enabled": False}
             else:
                 plugs[plug_name] = config.get(plug_name) or {"enabled": True}
-        print(plugs)
         self.solvers = QuestionSolversService(config=plugs)
 
     def spoken_answer(self, prompt, context):
@@ -31,6 +30,7 @@ class PersonaService:
         self.load_personas(personas_path)
 
     def load_personas(self, personas_path):
+        # TODO - plugin support
         for p in os.listdir(personas_path):
             if not p.endswith(".json"):
                 continue
@@ -40,6 +40,13 @@ class PersonaService:
             with open(f"{personas_path}/{p}") as f:
                 persona = json.load(f)
             self.personas[name] = Persona(name, persona)
+
+    def register_persona(self, name, persona):
+        self.personas[name] = Persona(name, persona)
+
+    def deregister_persona(self, name):
+        if name in self.personas:
+            self.personas.pop(name)
 
     # Chatbot API
     def chatbox_ask(self, prompt, persona="eliza", lang=None):

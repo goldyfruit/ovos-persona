@@ -11,6 +11,7 @@
   "solvers": [
     "neon_solver_ddg_plugin",
     "neon_solver_wolfram_alpha_plugin",
+    "neon_solver_wordnet_plugin",
     "ovos-solver-failure-plugin"
   ]
 }
