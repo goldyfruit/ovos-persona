@@ -3,6 +3,7 @@ from ovos_plugin_manager.solvers import find_question_solver_plugins
 import os
 from os.path import dirname
 import json
+from ovos_plugin_manager.persona import find_persona_plugins
 
 
 class Persona:
@@ -30,7 +31,13 @@ class PersonaService:
         self.load_personas(personas_path)
 
     def load_personas(self, personas_path):
-        # TODO - plugin support
+        # load personas provided by packages
+        for name, persona in find_persona_plugins().items():
+            if name in self.blacklist:
+                continue
+            self.personas[name] = Persona(name, persona)
+
+        # load user defined personas
         for p in os.listdir(personas_path):
             if not p.endswith(".json"):
                 continue
