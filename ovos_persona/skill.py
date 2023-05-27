@@ -128,7 +128,7 @@ class PersonaSkill(FallbackSkill):
     def converse(self, message=None):
         if self.active_persona:
             # check if user exited the persona loop
-            if self.voc_match("Release"):
+            if self.voc_match("Release", exact=True):
                 self.handle_disable_persona(message)
                 return True
             return self.ask_persona(message)
