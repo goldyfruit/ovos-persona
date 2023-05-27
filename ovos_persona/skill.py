@@ -37,7 +37,7 @@ class PersonaSkill(FallbackSkill):
         self.add_event("ovos.persona.deregister", self.handle_deregister_persona)
         self.add_event("ovos.persona.enable", self.handle_enable_persona)
         self.add_event("ovos.persona.disable", self.handle_disable_persona)
-        self.add_event("ovos.persona.ask", self.handle_ask_persona)
+        self.add_event("ovos.persona.ask", self.handle_persona_request)
 
         self.register_fallback(self.ask_persona, 85)
         self.register_helper_entities()
@@ -84,24 +84,37 @@ class PersonaSkill(FallbackSkill):
     def handle_disable_persona(self, message):
         self.active_persona = None
 
-    def handle_ask_persona(self, message):
+    def handle_persona_request(self, message):
         utterance = message.data['utterance']
         answer = self.persona.chatbox_ask(utterance, self.active_persona, self.lang)
         self.bus.emit(message.response(data={"utterance": answer, "lang": self.lang}))
 
     # intents
-    # NB: adapt intents requiring ActivePersona keyword,
-    #     that keyword is virtual, it is only set/removed in converse method
     @intent_handler("summon.intent")
     def handle_summon_persona(self, message):
         self.handle_enable_persona(message)
 
+    @intent_handler("ask.intent")
+    def handle_ask_persona(self, message):
+        utterance = message.data['utterance']
+        persona = message.data.get("name")
+        if persona == "persona":
+            persona = None
+        persona = persona or self.active_persona or self.settings.get("default_persona")
+        answer = self.persona.chatbox_ask(utterance, persona, self.lang)
+        self.bus.emit(message.response(data={"utterance": answer, "lang": self.lang}))
+
+    # NB: adapt intents requiring ActivePersona keyword,
+    #     that keyword is virtual, it is only set/removed via context
+    # TODO - once padatious supports context consider moving to it
     @intent_handler(IntentBuilder("ReleasePersona")
                     .require("ActivePersona")
                     .require("Release")
-                    .optionally("Persona"))
+                    .optionally("Persona") # registered persona names to increase confidence if present
+                    )
     def handle_release_persona(self, message):
         self.handle_disable_persona(message)
+        # TODO - speak some goodbye dialog
 
     # converse
     def handle_deactivate(self, message):
@@ -114,8 +127,10 @@ class PersonaSkill(FallbackSkill):
 
     def converse(self, message=None):
         if self.active_persona:
-            # TODO - match handle_release_persona intent
-            #
+            # check if user exited the persona loop
+            if self.voc_match("Release"):
+                self.handle_disable_persona(message)
+                return True
             return self.ask_persona(message)
         return False
 
