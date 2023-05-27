@@ -1,5 +1,6 @@
 import os
 
+from ovos_bus_client.message import Message
 from ovos_utils import classproperty
 from ovos_utils.intents import IntentBuilder
 from ovos_utils.log import LOG
@@ -39,23 +40,41 @@ class PersonaSkill(FallbackSkill):
         self.add_event("ovos.persona.ask", self.handle_ask_persona)
 
         self.register_fallback(self.ask_persona, 85)
+        self.register_helper_entities()
 
-        # register adapt Persona voc with names of defined persona .json files
-        for name in self.persona.personas:
-            self.register_vocabulary("Persona", name)
+    def register_helper_entities(self):
+        names = list(self.persona.personas.keys())
+        if not names:
+            return
+        for lang in self._native_langs:
+            # TODO - base skill class should allow this better and support a list of samples
+            # had to copy paste code around just to add aliases support to underlying method
+            # register adapt Persona voc with names of defined personas
+            keyword_type = self._alphanumeric_skill_id + "Persona"
+            if len(names) == 1:
+                self.intent_service.register_adapt_keyword(keyword_type, names[0], lang=lang)
+            else:
+                self.intent_service.register_adapt_keyword(keyword_type, names[0],
+                                                           aliases=names[1:], lang=lang)
+            # register padatious entity with names of defined personas
+            # TODO - base class only accepts file paths... not list of samples
+            self.bus.emit(Message('padatious:register_entity',
+                                  {"samples": names,
+                                   'name':  f"{self.skill_id}:name",
+                                   'lang': lang}))
 
     # bus api
     def handle_register_persona(self, message):
         name = message.data.get("name")
         persona = message.data.get("persona")
         self.persona.register_persona(name, persona)
-        self.register_vocabulary("Persona", name)  # register adapt voc
+        self.register_helper_entities()  # update entity samples
 
     def handle_deregister_persona(self, message):
         name = message.data.get("name")
         self.persona.deregister_persona(name)
         # TODO - missing method in ovos-workshop
-        #self.deregister_vocabulary("Persona", name)  # deregister adapt voc
+        # self.deregister_vocabulary("Persona", name)  # deregister adapt voc
 
     @adds_context("ActivePersona")
     def handle_enable_persona(self, message):
