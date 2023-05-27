@@ -1,0 +1,4 @@
+summon {name}
+i want to talk with {name}
+summon {name} ghost
+active {name} persona
