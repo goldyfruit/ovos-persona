@@ -40,15 +40,22 @@ class PersonaSkill(FallbackSkill):
 
         self.register_fallback(self.ask_persona, 85)
 
+        # register adapt Persona voc with names of defined persona .json files
+        for name in self.persona.personas:
+            self.register_vocabulary("Persona", name)
+
     # bus api
     def handle_register_persona(self, message):
         name = message.data.get("name")
         persona = message.data.get("persona")
         self.persona.register_persona(name, persona)
+        self.register_vocabulary("Persona", name)  # register adapt voc
 
     def handle_deregister_persona(self, message):
         name = message.data.get("name")
         self.persona.deregister_persona(name)
+        # TODO - missing method in ovos-workshop
+        #self.deregister_vocabulary("Persona", name)  # deregister adapt voc
 
     @adds_context("ActivePersona")
     def handle_enable_persona(self, message):
@@ -72,7 +79,8 @@ class PersonaSkill(FallbackSkill):
 
     @intent_handler(IntentBuilder("ReleasePersona")
                     .require("ActivePersona")
-                    .require("Release"))
+                    .require("Release")
+                    .optionally("Persona"))
     def handle_release_persona(self, message):
         self.handle_disable_persona(message)
 

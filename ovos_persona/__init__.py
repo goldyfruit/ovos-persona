@@ -44,6 +44,7 @@ class PersonaService:
             LOG.error("update ovos-plugin-manager for persona plugin support")
 
         # load user defined personas
+        os.makedirs(personas_path, exist_ok=True)
         for p in os.listdir(personas_path):
             if not p.endswith(".json"):
                 continue
