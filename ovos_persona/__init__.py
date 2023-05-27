@@ -1,9 +1,11 @@
-from ovos_persona.solvers import QuestionSolversService
-from ovos_plugin_manager.solvers import find_question_solver_plugins
+import json
 import os
 from os.path import dirname
-import json
-from ovos_plugin_manager.persona import find_persona_plugins
+
+from ovos_plugin_manager.solvers import find_question_solver_plugins
+from ovos_utils.log import LOG
+
+from ovos_persona.solvers import QuestionSolversService
 
 
 class Persona:
@@ -32,10 +34,14 @@ class PersonaService:
 
     def load_personas(self, personas_path):
         # load personas provided by packages
-        for name, persona in find_persona_plugins().items():
-            if name in self.blacklist:
-                continue
-            self.personas[name] = Persona(name, persona)
+        try:
+            from ovos_plugin_manager.persona import find_persona_plugins
+            for name, persona in find_persona_plugins().items():
+                if name in self.blacklist:
+                    continue
+                self.personas[name] = Persona(name, persona)
+        except ImportError:
+            LOG.error("update ovos-plugin-manager for persona plugin support")
 
         # load user defined personas
         for p in os.listdir(personas_path):
@@ -67,12 +73,14 @@ if __name__ == "__main__":
     b = PersonaService(f"{dirname(dirname(__file__))}/personas",
                        persona_blacklist=["omniscient oracle"])
 
+
     def test_persona(persona="eliza"):
         print(b.chatbox_ask("what is the speed of light", persona))
         print(b.chatbox_ask("who invented the telephone", persona))
         print(b.chatbox_ask("who is stephen hawking", persona))
         print(b.chatbox_ask("what is the meaning of life?", persona))
         print(b.chatbox_ask("what is your favorite animal?", persona))
+
 
     test_persona("eliza")
     # What answer would please you most?
