@@ -12,6 +12,7 @@ SKILL_PKG = SKILL_NAME.lower().replace("-", "_")
 PLUGIN_ENTRY_POINT = (
     f"{SKILL_NAME.lower()}.{SKILL_AUTHOR.lower()}={SKILL_PKG}:{SKILL_CLAZZ}"
 )
+PLUGIN_ENTRY_POINT = "persona.openvoiceos=ovos_persona.skill:PersonaSkill"
 
 BASEDIR = path.abspath(path.dirname(__file__))
 
@@ -78,9 +79,9 @@ setup(
     author="jarbasai",
     author_email="jarbasai@mailfence.com",
     license="MIT",
-    package_dir={SKILL_PKG: ""},
-    package_data={SKILL_PKG: find_resource_files()},
-    packages=[SKILL_PKG],
+    package_dir={"ovos_persona": ""},
+    package_data={"ovos_persona": find_resource_files()},
+    packages=["ovos_persona"],
     zip_safe=True,
     install_requires=get_requirements("requirements.txt"),
     long_description="ovos persona",
