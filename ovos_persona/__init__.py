@@ -191,12 +191,14 @@ class PersonaService(ConfidenceMatcherPipeline, OVOSAbstractApplication):
         intent_cache = expanduser(self.config.get('intent_cache') or
                                   f"{xdg_data_home()}/{get_xdg_base()}/intent_cache")
         intent_files = self.load_resource_files()
-        # Only the primary language trains here, on the path every boot waits
-        # for. Every other language trains on its first query: a padatious
+        # Only the primary language (and eager_langs) trains here, on the
+        # path every boot waits for. Every other language trains on its first query: a padatious
         # IntentContainer starts its own training then and waits for that
         # first compile, so it matches the same. A language nobody speaks to
         # never compiles or loads its models.
-        primary = standardize_lang_tag(Configuration().get("lang", "en-US"))
+        # eager_langs: languages trained now besides the primary one
+        eager = {standardize_lang_tag(Configuration().get("lang", "en-US"))} | \
+            {standardize_lang_tag(lang) for lang in self.config.get("eager_langs") or []}
         for lang, intent_data in intent_files.items():
             lang = standardize_lang_tag(lang)
             self.intent_matchers[lang] = IntentContainer(cache_dir=f"{intent_cache}/{lang}") \
@@ -217,7 +219,7 @@ class PersonaService(ConfidenceMatcherPipeline, OVOSAbstractApplication):
 
             if IS_PADATIOUS:
                 self.intent_matchers[lang].instantiate_from_disk()
-                if lang == primary:
+                if lang in eager:
                     self.intent_matchers[lang].train()
 
     @property
