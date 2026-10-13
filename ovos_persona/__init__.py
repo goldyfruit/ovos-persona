@@ -1,6 +1,5 @@
 import json
 import os
-import threading
 from os.path import join, dirname, expanduser, isdir
 from typing import Optional, Dict, List, Union, Iterable
 
@@ -122,8 +121,6 @@ class PersonaService(ConfidenceMatcherPipeline, OVOSAbstractApplication):
         self.active_personas = {}  # per session_id
         self.personas = {}
         self.intent_matchers = {}
-        # padatious languages load_intent_files left untrained (see there)
-        self.untrained_langs: List[str] = []
         self.blacklist = self.config.get("persona_blacklist") or []
         self.load_personas(self.config.get("personas_path"))
         # OVOS-PIPELINE-1 §8: handler_info makes each dispatched handler emit the
@@ -147,7 +144,6 @@ class PersonaService(ConfidenceMatcherPipeline, OVOSAbstractApplication):
         self.bus.on("ovos.persona.query", self.handle_oob_query)
         self.bus.on("ovos.persona.list", self.handle_persona_list_request)
         self.load_intent_files()
-        self.bus.once("mycroft.ready", self.train_untrained_matchers)
         self._active_sessions = {}
 
     @classmethod
@@ -196,12 +192,11 @@ class PersonaService(ConfidenceMatcherPipeline, OVOSAbstractApplication):
                                   f"{xdg_data_home()}/{get_xdg_base()}/intent_cache")
         intent_files = self.load_resource_files()
         # Only the primary language trains here, on the path every boot waits
-        # for. A padatious IntentContainer trains itself on its first query
-        # and waits for that first compile, so the other languages match the
-        # same; ``train_untrained_matchers`` trains them in the background
-        # once the runtime is ready.
+        # for. Every other language trains on its first query: a padatious
+        # IntentContainer starts its own training then and waits for that
+        # first compile, so it matches the same. A language nobody speaks to
+        # never compiles or loads its models.
         primary = standardize_lang_tag(Configuration().get("lang", "en-US"))
-        self.untrained_langs = []
         for lang, intent_data in intent_files.items():
             lang = standardize_lang_tag(lang)
             self.intent_matchers[lang] = IntentContainer(cache_dir=f"{intent_cache}/{lang}") \
@@ -224,21 +219,6 @@ class PersonaService(ConfidenceMatcherPipeline, OVOSAbstractApplication):
                 self.intent_matchers[lang].instantiate_from_disk()
                 if lang == primary:
                     self.intent_matchers[lang].train()
-                else:
-                    self.untrained_langs.append(lang)
-
-    def train_untrained_matchers(self, message: Optional[Message] = None):
-        """``mycroft.ready``: train the languages ``load_intent_files`` left
-        for their first query, on a background thread."""
-        langs, self.untrained_langs = self.untrained_langs, []
-
-        def train():
-            for lang in langs:
-                matcher = self.intent_matchers.get(lang)
-                if matcher is not None:
-                    matcher.train()
-
-        threading.Thread(target=train, name="persona-intent-train", daemon=True).start()
 
     @property
     def default_persona(self) -> Optional[str]:
